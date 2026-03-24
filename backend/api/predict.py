@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File
-# from services.inference_service import predict_ecg
+from services.inference_service import predict_ecg
 
 router = APIRouter(prefix="/predict", tags=["Prediction"])
 
