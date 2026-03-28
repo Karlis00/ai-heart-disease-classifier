@@ -13,9 +13,38 @@ except ImportError:
 class MambaLayer(nn.Module):
     def __init__(self, d_model):
         super().__init__()
-        self.mamba = nn.Identity()  # skip Mamba for CPU
+
+        if Mamba is not None:
+            self.use_mamba = True
+            self.mamba = Mamba(
+                d_model=d_model,
+                d_state=16,
+                d_conv=4,
+                expand=2
+            )
+        else:
+            print("Mamba not available, using Identity.")
+            self.use_mamba = False
+            self.mamba = nn.Identity()
 
     def forward(self, x):
+        """
+        Input: (B, C, L)
+        Mamba expects: (B, L, D)
+        """
+
+        if self.use_mamba:
+            # (B, C, L) → (B, L, C)
+            x = x.transpose(1, 2)
+
+            x = self.mamba(x)
+
+            # (B, L, C) → (B, C, L)
+            x = x.transpose(1, 2)
+
+        else:
+            x = self.mamba(x)
+
         return x
 
 
@@ -63,7 +92,7 @@ class CNN_MAMBA_v3(nn.Module):
         # CNN 3
         x = self.pool3(torch.relu(self.bn3(self.conv3(x))))
 
-        # Mamba
+        # Mamba (ACTIVE)
         x = self.mamba(x)
 
         # Global pooling
