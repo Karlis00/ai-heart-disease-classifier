@@ -2,51 +2,23 @@ import torch
 import torch.nn as nn
 
 # -------------------------------
-# Mamba Layer Wrapper
+# Mamba Layer (Linear + GELU)
 # -------------------------------
-try:
-    from mamba_ssm import Mamba
-except ImportError:
-    Mamba = None
-
-
 class MambaLayer(nn.Module):
     def __init__(self, d_model):
         super().__init__()
-
-        if Mamba is not None:
-            self.use_mamba = True
-            self.mamba = Mamba(
-                d_model=d_model,
-                d_state=16,
-                d_conv=4,
-                expand=2
-            )
-        else:
-            print("Mamba not available, using Identity.")
-            self.use_mamba = False
-            self.mamba = nn.Identity()
+        self.linear = nn.Linear(d_model, d_model)
+        self.activation = nn.GELU()
 
     def forward(self, x):
         """
-        Input: (B, C, L)
-        Mamba expects: (B, L, D)
+        x: (batch, channels, seq_len)
+        Applies sequence modeling along the temporal dimension using Linear + GELU
         """
-
-        if self.use_mamba:
-            # (B, C, L) → (B, L, C)
-            x = x.transpose(1, 2)
-
-            x = self.mamba(x)
-
-            # (B, L, C) → (B, C, L)
-            x = x.transpose(1, 2)
-
-        else:
-            x = self.mamba(x)
-
-        return x
-
+        x = x.permute(0, 2, 1)      # (B, seq_len, C)
+        out = self.activation(self.linear(x))
+        out = out.permute(0, 2, 1)  # back to (B, C, seq_len)
+        return out
 
 # -------------------------------
 # CNN + MAMBA MODEL
@@ -80,7 +52,7 @@ class CNN_MAMBA_v3(nn.Module):
 
     def forward(self, x):
         """
-        Input: (batch, 12, 1000)
+        x: (batch, 12, seq_len)
         """
 
         # CNN 1
@@ -92,12 +64,11 @@ class CNN_MAMBA_v3(nn.Module):
         # CNN 3
         x = self.pool3(torch.relu(self.bn3(self.conv3(x))))
 
-        # Mamba (ACTIVE)
+        # Mamba: sequence modeling on rich features
         x = self.mamba(x)
 
-        # Global pooling
+        # Global pooling + classifier
         x = self.global_pool(x).squeeze(-1)
-
-        # FC
         x = torch.relu(self.fc1(x))
-        return self.out(x)
+        x = self.out(x)
+        return x
