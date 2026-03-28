@@ -5,6 +5,7 @@ import os
 _model = None
 _device = None
 
+
 def load_model():
     global _model, _device
     if _model is not None:
