@@ -1,0 +1,19 @@
+# Web Framework (API)
+fastapi
+uvicorn
+python-multipart
+
+# Deep Learning Frameworks
+torch
+tensorflow
+
+# Data Processing & Analysis
+# Specified version <2.2 as seen in the notebook setup
+pandas<2.2
+numpy
+scipy
+wfdb
+
+# Visualization & Metrics
+matplotlib
+scikit-learn
